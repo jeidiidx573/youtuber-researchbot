@@ -1,0 +1,1 @@
+web: gunicorn youtuber_researchbot.wsgi --log-file -
