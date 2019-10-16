@@ -13,6 +13,8 @@ from django.conf import settings
 from django.shortcuts import render
 from django.http import HttpResponse
 
+from lineapi.models import User,Channels
+
 #LINE
 REPLY_ENDPOINT = 'https://api.line.me/v2/bot/message/reply'
 HEADER = {
@@ -35,20 +37,56 @@ channels_list = {
 
 # 通常リプライ
 def reply_text(reply_token, text):
-    replybox = ['毎日勉強！','頑張る！','レベルの高い大学に行くんだ！']
-    reply = random.choice(replybox)
+    reply_text = ""
+    if text != '':
+        reply_text = text
+    else:
+        reply_text = "下のメニューボタンから操作を選択してください"
+
     payload = {
           "replyToken":reply_token,
           "messages":[
                 {
                     "type":"text",
-                    "text": reply
+                    "text": reply_text
                 }
             ]
     }
 
     requests.post(REPLY_ENDPOINT, headers=HEADER, data=json.dumps(payload)) # LINEにデータを送信
-    return reply
+    return ""
+
+# ボタンリプライ
+def reply_button(reply_token, alt_text, buttons):
+    # ボタンアクション生成
+    actions = [] # 初期化
+    for i in buttons:
+        item = {
+            "type": "message",
+            "label": i,
+            "text": i
+        }
+        actions.append(item)
+
+    # ボタンテンプレート
+    template = {
+          "type": "buttons",
+          "text": alt_text,
+          "actions": actions
+    }
+    payload = {
+          "replyToken": reply_token,
+          "messages":[
+                {
+                    "type": "template",
+                    "altText": alt_text,
+                    "template": template
+                }
+            ]
+    }
+
+    requests.post(REPLY_ENDPOINT, headers=HEADER, data=json.dumps(payload)) # LINEにデータを送信
+    return ""
 
 # 登録済みチャンネル一覧をリプライ
 def reply_channel(reply_token, text):
@@ -94,33 +132,40 @@ def reply_channel(reply_token, text):
     return ""
 
 
-    # 3-1 動画一覧表示
-    def reply_Youtube(reply_token, text):
+# 3-1 動画一覧表示
+def reply_Youtube(reply_token, user_id):
 
-        # チャンネルIDセット
-        get_text = text.replace('>channels: ', '')
-        select_channel_id = channels_list[get_text]
+    user = User.objects.get(user_id=user_id)
+    channels = user.channels_set.all() # チャンネルID逆参照
 
-        # チャンネル取得
-        channel_response = youtube.channels().list(
-            part="contentDetails",
-            id=select_channel_id
-            ).execute()
-        channel_items = channel_response.get("items", [])
 
-        # チャンネルごとの動画抽出
+    # チャンネルIDセット
+    channels_ids = []
+    for channel in channels:
+        channels_ids.append(str(channel))
+    channels_id = ','.join(channels_ids)
+
+    # チャンネル取得
+    channel_response = youtube.channels().list(
+        part="contentDetails",
+        id=channels_id
+    ).execute()
+    channel_items = channel_response.get("items", [])
+
+    # チャンネルごとの動画抽出
+    messages = []
+    for c in channel_items:
         videos = []
-        for c in channel_items:
-            channel_id = c['id']
-            search_response = youtube.search().list(
-              part="id,snippet",
-              channelId=channel_id,
-              maxResults=5,
-              order="date"
-              ).execute()
-            search_items = search_response.get("items", [])
-            videos.append(search_items)
-
+        channel_id = c['id']
+        
+        search_response = youtube.search().list(
+            part="id,snippet",
+            channelId=channel_id,
+            maxResults=5,
+            order="date"
+        ).execute()
+        search_items = search_response.get("items", [])
+        videos.append(search_items)
 
         # columns取得
         columns = get_columns(videos)
@@ -129,54 +174,56 @@ def reply_channel(reply_token, text):
             "type": "carousel",
             "columns": columns
         }
-        payload = {
-              "replyToken":reply_token,
-              "messages":[
+        message = {
+            "type":"template",
+            "altText": "this is a carousel template",
+            "template": template
+        }
+        messages.append(message)
+
+
+    payload = {
+      "replyToken":reply_token,
+      "messages": messages
+    }
+
+    requests.post(REPLY_ENDPOINT, headers=HEADER, data=json.dumps(payload)) # LINEにデータを送信
+    return ""
+
+# 3-2 カラム取得
+def get_columns(videos):
+    columns = []
+    for video in videos:
+        for v in video:
+
+            # サムネイル
+            image = html.escape(v['snippet']['thumbnails']['medium']['url'])
+            # タイトル
+            title = v['snippet']['title']
+            title = title[:40]
+            # 説明文
+            description = v['snippet']['description']
+            description = description[:60]
+
+            # columns組み立て
+            col = {
+                "thumbnailImageUrl": image,
+                "imageBackgroundColor": "#000000",
+                "title": title,
+                "text": description,
+                "defaultAction": {
+                    "type": "uri",
+                    "label": "View detail",
+                    "uri": "http://example.com/page/123"
+                },
+                "actions": [
                     {
-                        "type":"template",
-                        "altText": "this is a carousel template",
-                        "template": template
+                        "type": "uri",
+                        "label": "Youtube",
+                        "uri": "https://www.youtube.com/watch?v="+v['id']['videoId']
                     }
                 ]
-        }
+              }
+            columns.append(col)
 
-        requests.post(REPLY_ENDPOINT, headers=HEADER, data=json.dumps(payload)) # LINEにデータを送信
-        return ""
-
-    # 3-2 カラム取得
-    def get_columns(videos):
-        columns = []
-        for video in videos:
-            for v in video:
-
-                # サムネイル
-                image = html.escape(v['snippet']['thumbnails']['medium']['url'])
-                # タイトル
-                title = v['snippet']['title']
-                title = title[:40]
-                # 説明文
-                description = v['snippet']['description']
-                description = description[:60]
-
-                # columns組み立て
-                col = {
-                    "thumbnailImageUrl": image,
-                    "imageBackgroundColor": "#000000",
-                    "title": title,
-                    "text": description,
-                    "defaultAction": {
-                        "type": "uri",
-                        "label": "View detail",
-                        "uri": "http://example.com/page/123"
-                    },
-                    "actions": [
-                        {
-                            "type": "uri",
-                            "label": "Youtube",
-                            "uri": "https://www.youtube.com/watch?v="+v['id']['videoId']
-                        }
-                    ]
-                  }
-                columns.append(col)
-
-        return columns
+    return columns

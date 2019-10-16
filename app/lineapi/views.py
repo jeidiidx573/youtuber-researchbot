@@ -10,6 +10,7 @@ from django.shortcuts import render
 from django.http import HttpResponse
 
 from .my_models import replay
+from .my_models import regist
 
 def index(request):
     return HttpResponse("This is bot api.")
@@ -18,22 +19,74 @@ def index(request):
 def callback(request):
     reply = ""
     request_json = json.loads(request.body.decode('utf-8')) # requestの情報をdict形式で取得
+
+    # print(request_json)
+
     for e in request_json['events']:
-        reply_token = e['replyToken']  # 返信先トークンの取得
-        message_type = e['message']['type']   # メッセージtypeの取得
-
         # print(e)
+        event_type = e['type']  # Webhookイベント
 
-        if message_type == 'text':
+        # ----------------
+        # フォローイベント
+        # ----------------
+        if event_type == "follow":
+            user_id = e['source']['userId']
+            reply_token = e['replyToken']  # 返信先トークンの取得
+
+            regist.create_user(user_id)
+            reply_text = 'フォローありがとうございます！操作は下のメニューより行ってください。'
+
+            reply += replay.reply_text(reply_token, reply_text)
+
+        # ----------------
+        # フォロー解除イベント
+        # ----------------
+        if event_type == "unfollow":
+            user_id = e['source']['userId']
+
+            regist.delete_user(user_id)
+            continue
+
+        # ----------------
+        # メッセージイベント
+        # ----------------
+        if event_type == 'message':
+            user_id = e['source']['userId']
             text = e['message']['text']    # 受信メッセージの取得
+            reply_token = e['replyToken']  # 返信先トークンの取得
 
             if text.startswith('>channels: '):
                 reply += replay.reply_Youtube(reply_token, text)
             elif text == 'にじさんじ':
                 reply += replay.reply_channel(reply_token, text)
+
+            # チャンネル一覧
+            elif text.startswith('>get_channels'):
+                reply += replay.reply_Youtube(reply_token, user_id)
+
+            # チャンネル登録/削除ボタン
             elif text == '>channnels_regist':
-                # チャンネル登録
-                reply += replay.reply_channel(reply_token, text)
+                alt_text = '操作を選択してください'
+                buttons = ['>登録','>削除']
+                reply += replay.reply_button(reply_token, alt_text, buttons)
+
+            # チャンネル登録:1
+            elif text == '>登録':
+                reply_text = '登録したいチャンネルURLを入力してください'
+                reply += replay.reply_text(reply_token, reply_text)
+
+            # チャンネル登録:2
+            elif text.startswith('https://www.youtube.com/channel/'):
+                reply += regist.create_channels(reply_token, user_id, text)
+
+            # チャンネル削除
+            elif text == '>削除':
+                reply_text = '削除するチャンネルを選択してください'
+                reply += replay.reply_text(reply_token, reply_text)
+
+            # 自動返信メッセージ
             else:
-                reply += replay.reply_text(reply_token, text)
+                reply_text = ''
+                reply += replay.reply_text(reply_token, reply_text)
+
     return HttpResponse(reply)
