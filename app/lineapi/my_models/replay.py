@@ -27,14 +27,6 @@ YOUTUBE_API_SERVICE_NAME = "youtube"
 YOUTUBE_API_VERSION = "v3"
 youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, developerKey=settings.DEVELOPER_KEY)
 
-# チャンネルリスト
-channels_list = {
-  "本間ひまわり": "UC0g1AE0DOjBYnLhkgoRWN1w",
-  "アンジュ・カトリーナ": "UCHVXbQzkl3rDfsXWo8xi2qw",
-  "リゼ・ヘルエスタ": "UCZ1xuCK1kNmn5RzPYIZop3w",
-  "笹木咲": "UCoztvTULBYd3WmStqYeoHcA"
-}
-
 # 通常リプライ
 def reply_text(reply_token, text):
     reply_text = ""
@@ -61,6 +53,7 @@ def reply_button(reply_token, alt_text, buttons):
     # ボタンアクション生成
     actions = [] # 初期化
     for i in buttons:
+        i = i[:20]
         item = {
             "type": "message",
             "label": i,
@@ -88,41 +81,35 @@ def reply_button(reply_token, alt_text, buttons):
     requests.post(REPLY_ENDPOINT, headers=HEADER, data=json.dumps(payload)) # LINEにデータを送信
     return ""
 
-# 登録済みチャンネル一覧をリプライ
-def reply_channel(reply_token, text):
+
+# 削除用ボタンリプライ
+def reply_delbutton(reply_token, alt_text, buttons):
+    # ボタンアクション生成
+    actions = [] # 初期化
+    for i in buttons:
+        id = str(i[0])
+        name = i[1]
+
+        name = name[:20]
+        item = {
+            "type": "message",
+            "label": name,
+            "text": 'del>' + id
+        }
+        actions.append(item)
+
     # ボタンテンプレート
     template = {
           "type": "buttons",
-          "text": "「にじさんじ」に所属するチャンネル一覧",
-          "actions": [
-              {
-                  "type": "message",
-                  "label": "本間ひまわり",
-                  "text": ">channels: 本間ひまわり"
-              },
-              {
-                  "type": "message",
-                  "label": "アンジュ・カトリーナ",
-                  "text": ">channels: アンジュ・カトリーナ"
-              },
-              {
-                  "type": "message",
-                  "label": "リゼ・ヘルエスタ",
-                  "text": ">channels: リゼ・ヘルエスタ"
-              },
-              {
-                  "type": "message",
-                  "label": "笹木咲",
-                  "text": ">channels: 笹木咲"
-              },
-          ]
-      }
+          "text": alt_text,
+          "actions": actions
+    }
     payload = {
           "replyToken": reply_token,
           "messages":[
                 {
                     "type": "template",
-                    "altText": "にじさんじに所属するチャンネル一覧",
+                    "altText": alt_text,
                     "template": template
                 }
             ]
@@ -130,7 +117,6 @@ def reply_channel(reply_token, text):
 
     requests.post(REPLY_ENDPOINT, headers=HEADER, data=json.dumps(payload)) # LINEにデータを送信
     return ""
-
 
 # 3-1 動画一覧表示
 def reply_Youtube(reply_token, user_id):
@@ -157,7 +143,7 @@ def reply_Youtube(reply_token, user_id):
     for c in channel_items:
         videos = []
         channel_id = c['id']
-        
+
         search_response = youtube.search().list(
             part="id,snippet",
             channelId=channel_id,
