@@ -14,3 +14,6 @@ class Channels(models.Model):
 
     def __str__(self):
         return self.channel_id;
+
+    def getName(self):
+        return self.channel_name;

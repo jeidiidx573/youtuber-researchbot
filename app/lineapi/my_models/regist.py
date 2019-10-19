@@ -46,6 +46,13 @@ def delete_user(user_id):
 
     return ""
 
+# Youtubeチャンネル一覧取得
+def get_channels(user_id):
+    user = User.objects.get(user_id=user_id)
+    channels = user.channels_set.all() # チャンネルID逆参照
+
+    return channels
+
 # Youtubeチャンネル登録
 def create_channels(reply_token, user_id, text):
     user = User.objects.get(user_id=user_id)
@@ -67,5 +74,19 @@ def create_channels(reply_token, user_id, text):
         channel_name = channel_items[0]['snippet']['title']
     )
     db.save()
+
+    return ""
+
+# Youtubeチャンネル削除
+def delete_channels(reply_token, user_id, text):
+    user = User.objects.get(user_id=user_id)
+
+    # チャンネルID取得
+    get_id = text.replace('del>', '')
+
+    channels = Channels.objects.get(user=user, channel_id=get_id)
+    channels.delete()
+
+    result = Channels.objects.all()
 
     return ""

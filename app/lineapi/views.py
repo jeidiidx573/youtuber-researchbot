@@ -79,10 +79,20 @@ def callback(request):
             elif text.startswith('https://www.youtube.com/channel/'):
                 reply += regist.create_channels(reply_token, user_id, text)
 
-            # チャンネル削除
+            # チャンネル削除:1
             elif text == '>削除':
-                reply_text = '削除するチャンネルを選択してください'
-                reply += replay.reply_text(reply_token, reply_text)
+                channels = regist.get_channels(user_id)
+                buttons = []
+                for channel in channels:
+                    item = [channel, channel.getName()]
+                    buttons.append(item)
+
+                alt_text = '削除を行うチャンネルを選択してください'
+                reply += replay.reply_delbutton(reply_token, alt_text, buttons)
+
+            # チャンネル削除:2
+            elif text.startswith('del>'):
+                reply += regist.delete_channels(reply_token, user_id, text)
 
             # 自動返信メッセージ
             else:
