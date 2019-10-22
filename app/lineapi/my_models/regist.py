@@ -14,6 +14,7 @@ from django.shortcuts import render
 from django.http import HttpResponse
 
 from lineapi.models import User,Channels
+from . import replay
 
 #LINE
 REPLY_ENDPOINT = 'https://api.line.me/v2/bot/message/reply'
@@ -29,20 +30,13 @@ youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, developerKey=sett
 
 # ユーザー登録
 def create_user(user_id):
-    db = User(
-        user_id = user_id
-    )
-    db.save()
-    # result = User.objects.all()
+    User.objects.create(user_id = user_id)
 
     return ""
 
 # ユーザー削除
 def delete_user(user_id):
-    user = User.objects.filter(user_id=user_id)
-    user.delete()
-
-    # result = User.objects.all()
+    user = User.objects.get(user_id=user_id).delete()
 
     return ""
 
@@ -56,37 +50,38 @@ def get_channels(user_id):
 # Youtubeチャンネル登録
 def create_channels(reply_token, user_id, text):
     user = User.objects.get(user_id=user_id)
+    channels_cnt = user.channels_set.count() # 既存登録数取得
+    channel_name = ''
 
-    # チャンネルID取得
-    get_id = text.replace('https://www.youtube.com/channel/', '')
-    select_channel_id = get_id
+    if channels_cnt < 4:
+        # チャンネルID取得
+        get_id = text.replace('https://www.youtube.com/channel/', '')
+        select_channel_id = get_id
 
-    # チャンネル取得
-    channel_response = youtube.channels().list(
-        part="snippet",
-        id=select_channel_id
-    ).execute()
-    channel_items = channel_response.get("items", [])
+        # チャンネル取得
+        channel_response = youtube.channels().list(
+            part="snippet",
+            id=select_channel_id
+        ).execute()
+        channel_items = channel_response.get("items", [])
 
-    db = Channels(
-        user = user,
-        channel_id = channel_items[0]['id'],
-        channel_name = channel_items[0]['snippet']['title']
-    )
-    db.save()
+        channels = Channels.objects.create(
+            user = user,
+            channel_id = channel_items[0]['id'],
+            channel_name = channel_items[0]['snippet']['title']
+        )
+        channel_name = channels.getName()
 
-    return ""
+    return channel_name
 
 # Youtubeチャンネル削除
 def delete_channels(reply_token, user_id, text):
     user = User.objects.get(user_id=user_id)
+    channel_name = ''
 
     # チャンネルID取得
     get_id = text.replace('del>', '')
 
-    channels = Channels.objects.get(user=user, channel_id=get_id)
-    channels.delete()
+    channels = Channels.objects.filter(user=user, channel_id=get_id).delete()
 
-    result = Channels.objects.all()
-
-    return ""
+    return channels[0]

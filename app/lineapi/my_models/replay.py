@@ -29,18 +29,41 @@ youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, developerKey=sett
 
 # 通常リプライ
 def reply_text(reply_token, text):
-    reply_text = ""
-    if text != '':
-        reply_text = text
-    else:
-        reply_text = "下のメニューボタンから操作を選択してください"
-
     payload = {
           "replyToken":reply_token,
           "messages":[
                 {
                     "type":"text",
-                    "text": reply_text
+                    "text": text
+                }
+            ]
+    }
+
+    requests.post(REPLY_ENDPOINT, headers=HEADER, data=json.dumps(payload)) # LINEにデータを送信
+    return ""
+
+# URIアクション
+def reply_uri(reply_token, text):
+
+    # ボタンテンプレート
+    template = {
+          "type": "buttons",
+          "text": "YoutubeからチャンネルURLを共有してください。",
+          "actions": [
+              {
+                  "type": "uri",
+                  "label": "Youtubeを開く",
+                  "uri": "https://www.youtube.com/"
+              }
+          ]
+    }
+    payload = {
+          "replyToken": reply_token,
+          "messages":[
+                {
+                    "type": "template",
+                    "altText": "YoutubeからチャンネルURLを共有してください。",
+                    "template": template
                 }
             ]
     }

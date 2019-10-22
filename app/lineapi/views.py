@@ -15,7 +15,6 @@ from .my_models import regist
 def index(request):
     return HttpResponse("This is bot api.")
 
-
 def callback(request):
     reply = ""
     request_json = json.loads(request.body.decode('utf-8')) # requestの情報をdict形式で取得
@@ -55,13 +54,7 @@ def callback(request):
             text = e['message']['text']    # 受信メッセージの取得
             reply_token = e['replyToken']  # 返信先トークンの取得
 
-            if text.startswith('>channels: '):
-                reply += replay.reply_Youtube(reply_token, text)
-            elif text == 'にじさんじ':
-                reply += replay.reply_channel(reply_token, text)
-
-            # チャンネル一覧
-            elif text.startswith('>get_channels'):
+            if text.startswith('>get_channels'):
                 reply += replay.reply_Youtube(reply_token, user_id)
 
             # チャンネル登録/削除ボタン
@@ -73,11 +66,17 @@ def callback(request):
             # チャンネル登録:1
             elif text == '>登録':
                 reply_text = '登録したいチャンネルURLを入力してください'
-                reply += replay.reply_text(reply_token, reply_text)
+                reply += replay.reply_uri(reply_token, reply_text)
 
             # チャンネル登録:2
             elif text.startswith('https://www.youtube.com/channel/'):
-                reply += regist.create_channels(reply_token, user_id, text)
+                channel_name = regist.create_channels(reply_token, user_id, text)
+                if channel_name:
+                    reply_text = '「' + channel_name + '」チャンネルを登録しました！'
+                    reply += replay.reply_text(reply_token, reply_text)
+                else:
+                    reply_text = 'チャンネル登録に失敗しました。\nチャンネルは4件まで登録可能です。'
+                    reply += replay.reply_text(reply_token, reply_text)
 
             # チャンネル削除:1
             elif text == '>削除':
@@ -87,16 +86,27 @@ def callback(request):
                     item = [channel, channel.getName()]
                     buttons.append(item)
 
-                alt_text = '削除を行うチャンネルを選択してください'
-                reply += replay.reply_delbutton(reply_token, alt_text, buttons)
+                if buttons:
+                    alt_text = '削除を行うチャンネルを選択してください'
+                    reply += replay.reply_delbutton(reply_token, alt_text, buttons)
+                else:
+                    reply_text = '登録されているチャンネルが存在しません。'
+                    reply += replay.reply_text(reply_token, reply_text)
+
 
             # チャンネル削除:2
             elif text.startswith('del>'):
-                reply += regist.delete_channels(reply_token, user_id, text)
+                result = regist.delete_channels(reply_token, user_id, text)
+                if result != 0:
+                    reply_text = 'チャンネルを削除しました！'
+                    reply += replay.reply_text(reply_token, reply_text)
+                else:
+                    reply_text = 'チャンネル削除に失敗しました。'
+                    reply += replay.reply_text(reply_token, reply_text)
 
             # 自動返信メッセージ
             else:
-                reply_text = ''
+                reply_text = '下のメニューボタンから操作を選択してください'
                 reply += replay.reply_text(reply_token, reply_text)
 
     return HttpResponse(reply)
