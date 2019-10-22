@@ -29,6 +29,12 @@ YOUTUBE_API_VERSION = "v3"
 youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, developerKey=settings.DEVELOPER_KEY)
 
 # ユーザー登録
+def create_test():
+    User.objects.create(user_id = 'test')
+
+    return ""
+
+# ユーザー登録
 def create_user(user_id):
     User.objects.create(user_id = user_id)
 

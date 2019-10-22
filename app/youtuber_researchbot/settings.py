@@ -79,7 +79,7 @@ WSGI_APPLICATION = 'youtuber_researchbot.wsgi.application'
 
 if "COMPUTER-NAME" in hostname:
     # デバッグ環境
-    ALLOWED_HOSTS = [] # よくわからんけど、これも大事らしい
+    ALLOWED_HOSTS = []
 else:
     # 本番環境
     # DEBUG = False
